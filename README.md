@@ -20,11 +20,13 @@
 
 ## 使用方式
 
-1. 直接用浏览器打开 [editor-mk7-autosave.html](./editor-mk7-autosave.html)
-2. 开始编辑，或上传 `.md` 文件
-3. 右上角会显示自动保存状态
-4. 需要导出时点击“另存为 .md”
+1. 打开 [index.html](./index.html)，点击链接后在新页面进入主编辑器
+2. 或直接用浏览器打开 [editor-mk7-autosave.html](./editor-mk7-autosave.html)
+3. 开始编辑，或上传 `.md` 文件
+4. 右上角会显示自动保存状态
+5. 需要导出时点击“另存为 .md”
 
 ## 文件结构
 
+- [index.html](./index.html): 入口页，只展示打开主页面的链接
 - [editor-mk7-autosave.html](./editor-mk7-autosave.html): 主应用，包含样式、交互和自动保存逻辑
