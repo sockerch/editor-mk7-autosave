@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Editor Mk7 Autosave - Markdown 编辑器 | 自动保存 | 多版本草稿恢复</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: #f1f5f9;
+      padding: 20px 0 0 0;
+    }
+
+    .app-container {
+      max-width: 95%;
+      width: 95%;
+      margin: 0 auto;
+      height: calc(100% - 20px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: white;
+      padding: 8px 20px;
+      border-radius: 60px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+      flex-shrink: 0;
+    }
+
+    .upload-box {
+      flex: 1;
+      padding: 10px 18px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 40px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      background: #fefefe;
+      transition: 0.2s;
+    }
+    .upload-box:hover { border-color: #3b82f6; background: #eff6ff; }
+
+    .save-btn {
+      padding: 10px 28px;
+      border: none;
+      border-radius: 40px;
+      background: #3b82f6;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .save-btn:hover { background: #2563eb; transform: translateY(-1px); }
+
+    .mode-buttons {
+      display: flex;
+      gap: 6px;
+      background: #f1f5f9;
+      padding: 4px;
+      border-radius: 48px;
+    }
+    .mode-btn {
+      padding: 6px 18px;
+      border: none;
+      border-radius: 40px;
+      background: transparent;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .mode-btn.active {
+      background: white;
+      color: #3b82f6;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .editor-wrapper {
+      display: flex;
+      gap: 24px;
+      flex: 1;
+      min-height: 0;
+      border-radius: 20px;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+
+    .editor-wrapper .panel {
+      width: 45%;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 24px;
+      overflow: hidden;
+      height: 100%;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    }
+
+    .intro-card {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 18px;
+      margin-bottom: 20px;
+      padding: 20px 24px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #0f172a, #1d4ed8 62%, #38bdf8);
+      color: white;
+      box-shadow: 0 18px 40px rgba(29, 78, 216, 0.22);
+      flex-shrink: 0;
+    }
+
+    .intro-copy h1 {
+      font-size: 28px;
+      line-height: 1.15;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .intro-copy p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.9);
+      max-width: 52ch;
+    }
+
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-content: start;
+    }
+
+    .feature-pill {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(8px);
+    }
+
+    .feature-pill strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .feature-pill span {
+      font-size: 12px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .editor-wrapper.single-editor .panel:last-child { display: none; }
+    .editor-wrapper.single-editor .panel:first-child { flex: 0 0 100%; width: 100%; }
+    .editor-wrapper.single-preview .panel:first-child { display: none; }
+    .editor-wrapper.single-preview .panel:last-child { flex: 0 0 100%; width: 100%; }
+
+    .panel-head {
+      padding: 16px 24px;
+      font-weight: 600;
+      background: #ffffff;
+      border-bottom: 1px solid #eef2f6;
+      flex-shrink: 0;
+      font-size: 15px;
+    }
+
+    #editor-wrap, #preview-wrap {
+      flex: 1;
+      overflow-y: auto;
+      background: #fff;
+    }
+
+    .rich-editor-area {
+      width: 100%;
+      min-height: 100%;
+      padding: 24px 28px;
+      outline: none;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 14.5px;
+      line-height: 1.65;
+      white-space: normal;
+      word-wrap: break-word;
+      background: white;
+      color: #0f172a;
+    }
+    .rich-editor-area:focus {
+      outline: none;
+    }
+
+    .editor-image-fold {
+      display: block;
+      background: #f8fafc;
+      border-left: 3px solid #3b82f6;
+      margin: 12px 0;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 13px;
+      overflow: hidden;
+      transition: all 0.1s;
+    }
+    .fold-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: #f1f5f9;
+      cursor: pointer;
+      user-select: none;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #1e293b;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .fold-header:hover {
+      background: #e6edf5;
+    }
+    .fold-icon {
+      font-size: 12px;
+      transition: transform 0.2s;
+      margin-right: 10px;
+      display: inline-block;
+    }
+    .fold-title {
+      flex: 1;
+      letter-spacing: 0;
+    }
+    .fold-badge {
+      background: #dbeafe;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      color: #2563eb;
+      font-family: monospace;
+    }
+    .fold-content {
+      padding: 12px 16px;
+      background: #fefefe;
+      font-family: 'SF Mono', monospace;
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+      border-top: 1px solid #edf2f7;
+      display: block;
+      color: #475569;
+    }
+    .editor-image-fold.collapsed .fold-content {
+      display: none;
+    }
+    .editor-image-fold.collapsed .fold-icon {
+      transform: rotate(-90deg);
+    }
+
+    #preview {
+      padding: 24px 32px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #0f172a;
+    }
+    #preview img {
+      max-width: 100%;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin: 1em 0;
+      display: block;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.2s;
+    }
+    #preview img:hover {
+      transform: scale(1.01);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+    #preview h1, #preview h2, #preview h3 { margin: 0.8em 0 0.4em; font-weight: 600; }
+    #preview h1 { border-bottom: 2px solid #eef2f6; font-size: 1.9em; }
+    #preview h2 { border-bottom: 1px solid #eef2f6; font-size: 1.5em; }
+    #preview p { margin: 1em 0; line-height: 1.75; }
+    #preview code { background: #f1f5f9; padding: 0.2em 0.4em; border-radius: 8px; font-size: 0.9em; }
+    #preview pre { background: #f1f5f9; padding: 1em; border-radius: 14px; overflow-x: auto; }
+    #preview blockquote { border-left: 4px solid #3b82f6; background: #f8fafc; padding: 0.6em 1.2em; border-radius: 0 12px 12px 0; margin: 1em 0; }
+    #preview ul, #preview ol { padding-left: 1.8em; margin: 0.8em 0; }
+    #preview a { color: #3b82f6; text-decoration: none; border-bottom: 1px solid transparent; }
+    #preview a:hover { border-bottom-color: #3b82f6; }
+    #preview table { width: 100%; border-collapse: collapse; margin: 1em 0; border-radius: 12px; overflow: hidden; }
+    #preview th, #preview td { border: 1px solid #e2e8f0; padding: 8px 12px; }
+
+    .toast-msg {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: white; padding: 8px 20px; border-radius: 40px;
+      font-size: 13px; z-index: 3000; backdrop-filter: blur(8px); pointer-events: none;
+    }
+    
+    /* 自动保存指示器 */
+    .auto-save-indicator {
+      position: fixed; top: 20px; right: 20px;
+      background: #10b981; color: white; padding: 6px 16px; border-radius: 20px;
+      font-size: 12px; font-weight: 500; z-index: 3001;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      opacity: 0; transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    .auto-save-indicator.error {
+      background: #ef4444;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+    .auto-save-indicator.warning {
+      background: #f59e0b;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    
+    /* 恢复对话框 */
+    .recovery-dialog {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5); z-index: 4000;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .recovery-dialog .dialog-content {
+      background: white; padding: 28px; border-radius: 20px;
+      max-width: 500px; width: 90%; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+    .recovery-dialog h3 {
+      margin: 0 0 12px 0; color: #1e293b;
+    }
+    .recovery-dialog p {
+      margin: 0 0 24px 0; color: #475569; line-height: 1.6;
+    }
+    .recovery-dialog .dialog-buttons {
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .recovery-dialog button {
+      padding: 10px 20px; border: none; border-radius: 12px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .recovery-dialog .btn-recover {
+      background: #3b82f6; color: white;
+    }
+    .recovery-dialog .btn-recover:hover {
+      background: #2563eb; transform: translateY(-1px);
+    }
+    .recovery-dialog .btn-ignore {
+      background: #f1f5f9; color: #475569;
+    }
+    .recovery-dialog .btn-ignore:hover {
+      background: #e2e8f0;
+    }
+    .recovery-dialog .btn-preview {
+      background: #fef3c7; color: #92400e;
+    }
+    .recovery-dialog .btn-preview:hover {
+      background: #fde68a;
+    }
+    
+    /* 自动保存状态指示器 */
+    .auto-save-status {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; background: #f0f9ff;
+      border: 1px solid #bae6fd; border-radius: 40px;
+      font-size: 12px; color: #0369a1;
+      cursor: default; user-select: none;
+      transition: all 0.2s;
+    }
+    .auto-save-status.saving {
+      background: #fef3c7; border-color: #fcd34d;
+      color: #92400e;
+    }
+    .auto-save-status.saved {
+      background: #d1fae5; border-color: #a7f3d0;
+      color: #065f46;
+    }
+    .auto-save-status.error {
+      background: #fee2e2; border-color: #fca5a5;
+      color: #991b1b;
+    }
+    .auto-save-status .status-icon {
+      font-size: 11px;
+    }
+    .auto-save-status .status-text {
+      font-weight: 500;
+    }
+    
+    /* 草稿预览 */
+    .draft-preview {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.7); z-index: 4001;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+    .draft-preview .preview-content {
+      background: white; padding: 28px; border-radius: 20px;
+      max-width: 800px; width: 90%; max-height: 80vh;
+      overflow-y: auto; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+    }
+    .draft-preview h4 {
+      margin: 0 0 16px 0; color: #1e293b;
+    }
+    .draft-preview pre {
+      background: #f8fafc; padding: 16px; border-radius: 12px;
+      font-size: 13px; line-height: 1.5; white-space: pre-wrap;
+      max-height: 50vh; overflow-y: auto; margin: 0 0 20px 0;
+    }
+    .draft-preview .btn-close-preview {
+      background: #3b82f6; color: white;
+      padding: 10px 24px; border: none; border-radius: 12px;
+      font-weight: 600; cursor: pointer;
+    }
+    .draft-preview .btn-close-preview:hover {
+      background: #2563eb;
+    }
+
+    @media (max-width: 1024px) {
+      .intro-card {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .intro-card {
+        padding: 18px;
+        border-radius: 20px;
+      }
+
+      .intro-copy h1 {
+        font-size: 24px;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <div class="action-row">
+    <div class="upload-box" onclick="document.getElementById('file-input').click()">📂 上传 .md 文件</div>
+    <button class="save-btn" onclick="saveMD()">💾 另存为 .md</button>
+    <div class="mode-buttons">
+      <button class="mode-btn" id="btnEditor" onclick="switchMode('editor')">✏️ 仅编辑</button>
+      <button class="mode-btn" id="btnPreview" onclick="switchMode('preview')">👁️ 仅预览</button>
+      <button class="mode-btn active" id="btnBoth" onclick="switchMode('both')">📄 双栏</button>
+    </div>
+    <div class="auto-save-status" id="autoSaveStatus" title="自动保存状态">
+      <span class="status-icon">💾</span>
+      <span class="status-text">自动保存已启用</span>
+    </div>
+  </div>
+  <input type="file" id="file-input" accept=".md" style="display:none" onchange="loadFile(event)">
+
+  <section class="intro-card">
+    <div class="intro-copy">
+      <h1>Editor Mk7 Autosave</h1>
+      <p>
+        一个偏实用的单文件 Markdown 编辑器：保留原始图片格式、支持撤销重做，
+        同时内置面向长文写作的自动保存机制，尽量把“突然关闭页面”这类损失降到最低。
+      </p>
+    </div>
+    <div class="feature-list">
+      <div class="feature-pill"><strong>智能节流保存</strong><span>停止输入 2 秒后自动保存</span></div>
+      <div class="feature-pill"><strong>定时保存</strong><span>每 30 秒自动保存一次</span></div>
+      <div class="feature-pill"><strong>多版本管理</strong><span>最多保留 3 个自动保存版本</span></div>
+      <div class="feature-pill"><strong>草稿恢复</strong><span>24 小时内自动恢复未保存的草稿</span></div>
+      <div class="feature-pill"><strong>状态指示</strong><span>右上角实时显示自动保存状态</span></div>
+      <div class="feature-pill"><strong>错误处理</strong><span>存储空间不足时自动清理旧数据</span></div>
+    </div>
+  </section>
+
+  <div class="editor-wrapper" id="editorWrapper">
+    <div class="panel">
+      <div class="panel-head">✏️ 编辑区 · 图片智能压缩 (保留原始格式) | 支持 Ctrl+Z/Y</div>
+      <div id="editor-wrap">
+        <div id="editorRich" class="rich-editor-area" contenteditable="true"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">👁️ 预览区 · 点击图片在新标签页打开</div>
+      <div id="preview-wrap">
+        <div id="preview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==================== 撤销/重做管理器 (30步) ====================
+  class UndoManager {
+    constructor(maxSteps = 30) {
+      this.history = [];
+      this.currentIndex = -1;
+      this.maxSteps = maxSteps;
+      this.ignoreNext = false;
+    }
+    push(state) {
+      if (this.ignoreNext) { this.ignoreNext = false; return; }
+      if (this.currentIndex < this.history.length - 1) {
+        this.history = this.history.slice(0, this.currentIndex + 1);
+      }
+      this.history.push(state);
+      while (this.history.length > this.maxSteps) this.history.shift();
+      this.currentIndex = this.history.length - 1;
+    }
+    undo() {
+      if (this.currentIndex > 0) {
+        this.currentIndex--;
+        this.ignoreNext = true;
+        return this.history[this.currentIndex];
+      }
+      return null;
+    }
+    redo() {
+      if (this.currentIndex < this.history.length - 1) {
+        this.currentIndex++;
+        this.ignoreNext = true;
+        return this.history[this.currentIndex];
+      }
+      return null;
+    }
+    reset(initialState) {
+      this.history = [initialState];
+      this.currentIndex = 0;
+      this.ignoreNext = false;
+    }
+  }
+
+  // ==================== 图片智能压缩 (保留原始格式，仅超限时转JPEG) ====================
+  function getTargetSize(width, height) {
+    let newWidth = width;
+    let newHeight = height;
+    if (newWidth > 1600) {
+      newHeight = newHeight * 1600 / newWidth;
+      newWidth = 1600;
+    }
+    if (newHeight > 1200) {
+      newWidth = newWidth * 1200 / newHeight;
+      newHeight = 1200;
+    }
+    return { width: Math.round(newWidth), height: Math.round(newHeight) };
+  }
+
+  // 压缩图片：如果尺寸未超限且原始格式非JPEG，保留原始格式（避免二次编码）
+  // 如果需要缩放或原图是JPEG但尺寸超限，统一转为JPEG质量0.85
+  function compressImageSmart(file) {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('不是图片文件'));
+        return;
+      }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const { width: targetWidth, height: targetHeight } = getTargetSize(img.width, img.height);
+        const needResize = (targetWidth !== img.width || targetHeight !== img.height);
+        
+        // 如果不需要缩放，并且原始格式不是 JPEG（即 PNG/GIF/WebP 等），直接使用原始 Base64 保持透明/质量
+        if (!needResize && file.type !== 'image/jpeg') {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => reject(new Error('读取原图失败'));
+          reader.readAsDataURL(file);
+          return;
+        }
+        
+        // 需要缩放 或 原图是JPEG但尺寸超限 -> 统一重编码为 JPEG 质量0.85
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(compressedBase64);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('图片加载失败'));
+      };
+      img.src = url;
+    });
+  }
+
+  // ==================== 编辑器核心 ====================
+  let realMarkdown = "";
+  let isUpdatingDOM = false;
+  let updateTimer = null;
+  let lastUploadedBaseName = null;
+  
+  // ==================== 自动保存系统 ====================
+  let autoSaveTimer = null;
+  let pendingSave = false;
+  let saveTimeout = null;
+  let lastSavedContent = '';
+  let changeDetected = false;
+  let isAutoSaving = false;
+  
+  // 自动保存配置
+  const AUTO_SAVE_CONFIG = {
+    interval: 30000,           // 30秒定时保存
+    debounce: 2000,           // 停止输入后2秒保存
+    maxDraftAge: 24 * 60 * 60 * 1000, // 24小时
+    storageKey: 'md_editor_autosave_',
+    maxVersions: 3            // 最多保存3个版本
+  };
+  
+  const editorRich = document.getElementById('editorRich');
+  const previewDiv = document.getElementById('preview');
+  const editorWrapDiv = document.getElementById('editor-wrap');
+  const previewWrap = document.getElementById('preview-wrap');
+  
+  const undoManager = new UndoManager(30);
+  
+  function showToast(msg) {
+    let t = document.querySelector('.toast-msg');
+    if (!t) { t = document.createElement('div'); t.className = 'toast-msg'; document.body.appendChild(t); }
+    t.textContent = msg; t.style.opacity = '1';
+    setTimeout(() => t.style.opacity = '0', 2000);
+  }
+  
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+  
+  // ==================== 自动保存功能 ====================
+  
+  // 计算字符串的简单哈希（用于差异检测）
+  function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 转换为32位整数
+    }
+    return hash;
+  }
+  
+  // 检查是否有未保存的更改
+  function hasUnsavedChanges() {
+    return realMarkdown !== lastSavedContent || changeDetected;
+  }
+  
+  // 智能节流保存：用户停止输入后保存
+  function scheduleAutoSave() {
+    if (pendingSave || isAutoSaving) return;
+    
+    pendingSave = true;
+    
+    // 清除之前的定时器
+    if (saveTimeout) clearTimeout(saveTimeout);
+    
+    // 用户停止输入后2秒再保存
+    saveTimeout = setTimeout(() => {
+      if (hasUnsavedChanges()) {
+        performAutoSave();
+      }
+      pendingSave = false;
+    }, AUTO_SAVE_CONFIG.debounce);
+  }
+  
+  // 执行自动保存
+  function performAutoSave() {
+    if (isAutoSaving) return;
+    
+    isAutoSaving = true;
+    const startTime = Date.now();
+    
+    // 更新状态为保存中
+    updateAutoSaveStatus('saving');
+    
+    try {
+      // 保存当前版本
+      const saveData = {
+        content: realMarkdown,
+        timestamp: Date.now(),
+        hash: simpleHash(realMarkdown),
+        size: realMarkdown.length
+      };
+      
+      // 获取现有的保存版本
+      let versions = [];
+      try {
+        const saved = localStorage.getItem(AUTO_SAVE_CONFIG.storageKey + 'versions');
+        if (saved) {
+          versions = JSON.parse(saved);
+        }
+      } catch (e) {
+        console.warn('无法读取保存版本:', e);
+      }
+      
+      // 添加新版本
+      versions.unshift(saveData);
+      
+      // 限制版本数量
+      if (versions.length > AUTO_SAVE_CONFIG.maxVersions) {
+        versions = versions.slice(0, AUTO_SAVE_CONFIG.maxVersions);
+      }
+      
+      // 保存到本地存储
+      localStorage.setItem(AUTO_SAVE_CONFIG.storageKey + 'versions', JSON.stringify(versions));
+      localStorage.setItem(AUTO_SAVE_CONFIG.storageKey + 'last_save', Date.now().toString());
+      
+      // 更新状态
+      lastSavedContent = realMarkdown;
+      changeDetected = false;
+      
+      // 显示保存指示器
+      showAutoSaveIndicator('已自动保存');
+      
+      const saveTime = Date.now() - startTime;
+      console.log(`自动保存完成，耗时: ${saveTime}ms，大小: ${saveData.size} 字符`);
+      
+      // 更新状态为已保存（2秒后恢复空闲状态）
+      updateAutoSaveStatus('saved');
+      setTimeout(() => updateAutoSaveStatus('idle'), 2000);
+      
+    } catch (error) {
+      console.error('自动保存失败:', error);
+      
+      if (error.name === 'QuotaExceededError') {
+        // 存储空间不足，清理旧数据
+        cleanupOldAutoSaves();
+        // 重试一次
+        setTimeout(() => performAutoSave(), 1000);
+      } else {
+        showAutoSaveIndicator('保存失败', 'error');
+        updateAutoSaveStatus('error');
+        setTimeout(() => updateAutoSaveStatus('idle'), 3000);
+      }
+    } finally {
+      isAutoSaving = false;
+    }
+  }
+  
+  // 更新自动保存状态指示器
+  function updateAutoSaveStatus(status = 'idle', message = '') {
+    const statusElement = document.getElementById('autoSaveStatus');
+    if (!statusElement) return;
+    
+    // 移除所有状态类
+    statusElement.classList.remove('saving', 'saved', 'error');
+    
+    // 添加当前状态类
+    if (status !== 'idle') {
+      statusElement.classList.add(status);
+    }
+    
+    // 更新文本
+    const textElement = statusElement.querySelector('.status-text');
+    if (textElement) {
+      const statusTexts = {
+        'idle': '自动保存已启用',
+        'saving': '保存中...',
+        'saved': '已保存',
+        'error': '保存失败'
+      };
+      textElement.textContent = message || statusTexts[status] || statusTexts.idle;
+    }
+    
+    // 更新图标
+    const iconElement = statusElement.querySelector('.status-icon');
+    if (iconElement) {
+      const statusIcons = {
+        'idle': '💾',
+        'saving': '⏳',
+        'saved': '✅',
+        'error': '❌'
+      };
+      iconElement.textContent = statusIcons[status] || statusIcons.idle;
+    }
+  }
+  
+  // 显示自动保存指示器
+  function showAutoSaveIndicator(message, type = 'success') {
+    let indicator = document.querySelector('.auto-save-indicator');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.className = 'auto-save-indicator';
+      document.body.appendChild(indicator);
+    }
+    
+    indicator.textContent = message;
+    indicator.className = `auto-save-indicator ${type}`;
+    indicator.style.opacity = '1';
+    
+    // 2秒后淡出
+    setTimeout(() => {
+      indicator.style.opacity = '0';
+    }, 2000);
+  }
+  
+  // 清理旧的自动保存数据
+  function cleanupOldAutoSaves() {
+    try {
+      const now = Date.now();
+      let versions = [];
+      
+      const saved = localStorage.getItem(AUTO_SAVE_CONFIG.storageKey + 'versions');
+      if (saved) {
+        versions = JSON.parse(saved);
+        
+        // 过滤掉过期的版本（超过24小时）
+        versions = versions.filter(v => {
+          return (now - v.timestamp) < AUTO_SAVE_CONFIG.maxDraftAge;
+        });
+        
+        // 重新保存
+        localStorage.setItem(AUTO_SAVE_CONFIG.storageKey + 'versions', JSON.stringify(versions));
+        
+        console.log(`清理后剩余 ${versions.length} 个版本`);
+      }
+    } catch (e) {
+      console.error('清理自动保存数据失败:', e);
+    }
+  }
+  
+  // 启动自动保存定时器
+  function startAutoSaveTimer() {
+    if (autoSaveTimer) clearInterval(autoSaveTimer);
+    
+    autoSaveTimer = setInterval(() => {
+      if (hasUnsavedChanges()) {
+        performAutoSave();
+      }
+    }, AUTO_SAVE_CONFIG.interval);
+    
+    console.log('自动保存定时器已启动');
+  }
+  
+  // 检查并恢复自动保存的草稿
+  function checkAndRecoverAutoSave() {
+    try {
+      const saved = localStorage.getItem(AUTO_SAVE_CONFIG.storageKey + 'versions');
+      if (!saved) return null;
+      
+      const versions = JSON.parse(saved);
+      if (versions.length === 0) return null;
+      
+      const latest = versions[0];
+      const now = Date.now();
+      const age = now - latest.timestamp;
+      
+      // 只恢复24小时内的草稿
+      if (age < AUTO_SAVE_CONFIG.maxDraftAge) {
+        return {
+          content: latest.content,
+          timestamp: new Date(latest.timestamp),
+          age: Math.floor(age / (1000 * 60 * 60)), // 小时
+          size: latest.size
+        };
+      } else {
+        // 清理过期草稿
+        cleanupOldAutoSaves();
+      }
+    } catch (e) {
+      console.warn('恢复自动保存失败:', e);
+    }
+    return null;
+  }
+  
+  // 显示恢复确认对话框
+  function showRecoveryDialog(draft) {
+    const dialog = document.createElement('div');
+    dialog.className = 'recovery-dialog';
+    
+    const ageText = draft.age === 0 ? '刚刚' : `${draft.age}小时前`;
+    
+    dialog.innerHTML = `
+      <div class="dialog-content">
+        <h3>📝 发现未保存的草稿</h3>
+        <p>发现${ageText}自动保存的草稿（${draft.size} 字符）</p>
+        <div class="dialog-buttons">
+          <button class="btn-recover">恢复草稿</button>
+          <button class="btn-ignore">忽略</button>
+          <button class="btn-preview">预览内容</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(dialog);
+    
+    // 按钮事件处理
+    dialog.querySelector('.btn-recover').addEventListener('click', () => {
+      setMarkdown(draft.content, true);
+      undoManager.reset(draft.content);
+      dialog.remove();
+      showToast('草稿已恢复');
+    });
+    
+    dialog.querySelector('.btn-ignore').addEventListener('click', () => {
+      dialog.remove();
+      showToast('已忽略草稿');
+    });
+    
+    dialog.querySelector('.btn-preview').addEventListener('click', () => {
+      const preview = document.createElement('div');
+      preview.className = 'draft-preview';
+      preview.innerHTML = `
+        <div class="preview-content">
+          <h4>草稿预览（前500字符）</h4>
+          <pre>${escapeHtml(draft.content.substring(0, 500))}${draft.content.length > 500 ? '...' : ''}</pre>
+          <button class="btn-close-preview">关闭预览</button>
+        </div>
+      `;
+      document.body.appendChild(preview);
+      
+      preview.querySelector('.btn-close-preview').addEventListener('click', () => {
+        preview.remove();
+      });
+    });
+  }
+  
+  // 从 markdown 源码生成编辑区可折叠HTML
+  function markdownToEditableHTML(md) {
+    const imageRegex = /!\[([^\]]*)\]\((data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)\)/g;
+    let lastIndex = 0;
+    let resultHtml = '';
+    let match;
+    while ((match = imageRegex.exec(md)) !== null) {
+      const fullMatch = match[0];
+      const altText = match[1] || 'image';
+      const base64Data = match[2];
+      const startIdx = match.index;
+      const beforeText = md.substring(lastIndex, startIdx);
+      resultHtml += escapeHtml(beforeText).replace(/\n/g, '<br>');
+      const sizeKB = ((base64Data.length * 0.75) / 1024).toFixed(1);
+      const shortName = altText.length > 35 ? altText.slice(0,32)+'...' : altText;
+      resultHtml += `
+        <div class="editor-image-fold" data-original-markdown="${escapeHtml(fullMatch)}">
+          <div class="fold-header">
+            <span class="fold-icon">▼</span>
+            <span class="fold-title">🖼️ 图片: ${escapeHtml(shortName)}</span>
+            <span class="fold-badge">Base64 ${sizeKB}KB (点击展开)</span>
+          </div>
+          <div class="fold-content">${escapeHtml(base64Data.substring(0, 200))}…… (Base64长度${base64Data.length})</div>
+        </div>
+      `;
+      lastIndex = startIdx + fullMatch.length;
+    }
+    const remaining = md.substring(lastIndex);
+    resultHtml += escapeHtml(remaining).replace(/\n/g, '<br>');
+    return `<div style="white-space: normal;">${resultHtml}</div>`;
+  }
+  
+  function extractMarkdownFromDOM() {
+    let markdown = '';
+    const walk = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        markdown += node.textContent;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.classList && node.classList.contains('editor-image-fold')) {
+          const original = node.getAttribute('data-original-markdown');
+          if (original) markdown += original;
+          else markdown += '![image]()';
+        } else if (node.tagName === 'BR') {
+          markdown += '\n';
+        } else if (node.tagName === 'DIV') {
+          for (let child of node.childNodes) walk(child);
+          if (node !== editorRich && node.childNodes.length > 0 && !node.classList?.contains('editor-image-fold')) {
+            if (node.nextSibling && node.nextSibling.nodeType !== Node.TEXT_NODE) markdown += '\n';
+          }
+        } else {
+          for (let child of node.childNodes) walk(child);
+          if (node.tagName === 'P' || node.tagName === 'DIV') {
+            if (node.nextSibling) markdown += '\n';
+          }
+        }
+      }
+    };
+    for (let child of editorRich.childNodes) walk(child);
+    markdown = markdown.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    markdown = markdown.replace(/\r\n/g, '\n');
+    return markdown;
+  }
+  
+  function refreshEditorUI(preserveCursor = true) {
+    if (isUpdatingDOM) return;
+    isUpdatingDOM = true;
+    const selection = window.getSelection();
+    let range = null;
+    if (preserveCursor && selection.rangeCount > 0) {
+      range = selection.getRangeAt(0);
+    }
+    const newHtml = markdownToEditableHTML(realMarkdown);
+    editorRich.innerHTML = newHtml;
+    if (range) {
+      try {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } catch(e) {
+        const lastChild = editorRich.lastChild;
+        if (lastChild) {
+          const newRange = document.createRange();
+          newRange.selectNodeContents(editorRich);
+          newRange.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+      }
+    } else {
+      const lastChild = editorRich.lastChild;
+      if (lastChild) {
+        const newRange = document.createRange();
+        newRange.selectNodeContents(editorRich);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
+    }
+    attachFoldEvents();
+    isUpdatingDOM = false;
+  }
+  
+  function attachFoldEvents() {
+    const folds = document.querySelectorAll('.editor-image-fold');
+    folds.forEach(fold => {
+      const header = fold.querySelector('.fold-header');
+      if (header && !header.hasAttribute('data-fold-listener')) {
+        header.setAttribute('data-fold-listener', 'true');
+        header.addEventListener('click', (e) => {
+          e.stopPropagation();
+          fold.classList.toggle('collapsed');
+          const icon = fold.querySelector('.fold-icon');
+          if (icon) icon.textContent = fold.classList.contains('collapsed') ? '▶' : '▼';
+        });
+      }
+    });
+  }
+  
+  function onEditorInput() {
+    if (isUpdatingDOM) return;
+    
+    // 标记有更改
+    changeDetected = true;
+    
+    // 原有的防抖逻辑
+    if (updateTimer) clearTimeout(updateTimer);
+    updateTimer = setTimeout(() => {
+      const newMarkdown = extractMarkdownFromDOM();
+      if (newMarkdown !== realMarkdown) {
+        realMarkdown = newMarkdown;
+        renderPreviewFromMarkdown(realMarkdown);
+        undoManager.push(realMarkdown);
+        
+        // 触发自动保存
+        scheduleAutoSave();
+      }
+    }, 50);
+  }
+  
+  function renderPreviewFromMarkdown(md) {
+    let html = parseMarkdownFull(md);
+    previewDiv.innerHTML = html;
+  }
+  
+  function setMarkdown(newMarkdown, recordHistory = true) {
+    if (newMarkdown === realMarkdown) return;
+    realMarkdown = newMarkdown;
+    refreshEditorUI(true);
+    renderPreviewFromMarkdown(realMarkdown);
+    if (recordHistory) undoManager.push(realMarkdown);
+    
+    // 标记有更改并触发自动保存
+    changeDetected = true;
+    scheduleAutoSave();
+  }
+  
+  function undo() {
+    const prevState = undoManager.undo();
+    if (prevState !== null && prevState !== realMarkdown) {
+      setMarkdown(prevState, false);
+      showToast("已撤销");
+    } else {
+      showToast("没有更早的历史记录");
+    }
+  }
+  
+  function redo() {
+    const nextState = undoManager.redo();
+    if (nextState !== null && nextState !== realMarkdown) {
+      setMarkdown(nextState, false);
+      showToast("已重做");
+    } else {
+      showToast("没有更新的历史记录");
+    }
+  }
+  
+  // ========== 光标位置插入图片（智能压缩） ==========
+  async function insertImageFoldAtCursor(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      showToast('仅支持图片文件');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showToast('图片超过20MB，请压缩后重试');
+      return;
+    }
+    
+    showToast(`正在处理图片: ${file.name} ...`);
+    let finalBase64;
+    try {
+      finalBase64 = await compressImageSmart(file);
+    } catch (err) {
+      showToast('图片处理失败，将使用原始文件');
+      const fallbackBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+      finalBase64 = fallbackBase64;
+    }
+    
+    const imgMarkdown = `![${file.name || 'pasted-image'}](${finalBase64})`;
+    const selection = window.getSelection();
+    if (!selection.rangeCount || !editorRich.contains(selection.anchorNode)) {
+      const newMarkdown = realMarkdown + (realMarkdown.endsWith('\n') ? '' : '\n') + imgMarkdown + '\n';
+      setMarkdown(newMarkdown, true);
+      editorRich.focus();
+      showToast(`✅ 已插入图片: ${file.name}`);
+      return;
+    }
+    
+    const range = selection.getRangeAt(0);
+    const sizeKB = ((finalBase64.length * 0.75) / 1024).toFixed(1);
+    const shortName = (file.name || 'image').length > 35 ? (file.name || 'image').slice(0,32)+'...' : (file.name || 'image');
+    const foldDiv = document.createElement('div');
+    foldDiv.className = 'editor-image-fold';
+    foldDiv.setAttribute('data-original-markdown', imgMarkdown);
+    foldDiv.innerHTML = `
+      <div class="fold-header">
+        <span class="fold-icon">▼</span>
+        <span class="fold-title">🖼️ 图片: ${escapeHtml(shortName)}</span>
+        <span class="fold-badge">${sizeKB}KB (点击展开)</span>
+      </div>
+      <div class="fold-content">${escapeHtml(finalBase64.substring(0, 200))}…… (Base64长度${finalBase64.length})</div>
+    `;
+    
+    range.deleteContents();
+    range.insertNode(foldDiv);
+    const space = document.createTextNode('\n');
+    range.setStartAfter(foldDiv);
+    range.insertNode(space);
+    range.setStartAfter(space);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
+    const newMarkdown = extractMarkdownFromDOM();
+    setMarkdown(newMarkdown, true);
+    editorRich.focus();
+    showToast(`✅ 图片已插入光标位置: ${file.name}`);
+  }
+  
+  function onPaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (blob) insertImageFoldAtCursor(blob);
+        break;
+      }
+    }
+  }
+  
+  function setupDragAndDrop() {
+    const dropZone = editorRich;
+    const prevent = (e) => { e.preventDefault(); e.stopPropagation(); };
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, prevent));
+    dropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length) {
+        e.preventDefault();
+        for (let f of files) {
+          if (f.type.startsWith('image/')) {
+            insertImageFoldAtCursor(f);
+            break;
+          } else {
+            showToast('请拖拽图片文件');
+          }
+        }
+      }
+    });
+  }
+  
+  function setupPreviewImageClick() {
+    previewDiv.addEventListener('click', (e) => {
+      let target = e.target;
+      while (target && target !== previewDiv) {
+        if (target.tagName === 'IMG') {
+          e.preventDefault();
+          e.stopPropagation();
+          window.open(target.src, '_blank');
+          return;
+        }
+        target = target.parentNode;
+      }
+    });
+  }
+  
+  function onKeyDown(e) {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    }
+  }
+  
+  // ========== Markdown 解析器 ==========
+  function parseMarkdownFull(text) {
+    let html = text;
+    html = html.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
+    html = html.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
+    html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    html = html.replace(/^(\-{3,}|\*{3,}|_{3,})$/gim, '<hr>');
+    html = html.replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+    html = html.replace(/~~(.*?)~~/gim, '<del>$1</del>');
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, (match, alt, src) => `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy">`);
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    html = html.replace(/```([\s\S]*?)```/gim, (match, code) => `<pre><code>${escapeHtml(code.trim())}</code></pre>`);
+    html = html.replace(/`([^`]+)`/gim, '<code>$1</code>');
+    html = parseBlockquotes(html);
+    html = parseLists(html);
+    html = parseTables(html);
+    const lines = html.split(/\r?\n/);
+    let result = [], buffer = [];
+    for (let line of lines) {
+      if (line.trim() === '') {
+        if (buffer.length) { result.push(wrapParagraphIfNeeded(buffer.join('\n'))); buffer = []; }
+        result.push('');
+      } else buffer.push(line);
+    }
+    if (buffer.length) result.push(wrapParagraphIfNeeded(buffer.join('\n')));
+    let finalHtml = result.join('\n');
+    finalHtml = finalHtml.replace(/<p>\s*<\/p>/g, '');
+    return finalHtml;
+  }
+  
+  function wrapParagraphIfNeeded(block) {
+    if (/^<(h[1-6]|ul|ol|pre|blockquote|table|hr|img|div)/i.test(block.trim())) return block;
+    return `<p>${block.replace(/\n/g, '<br>')}</p>`;
+  }
+  function parseBlockquotes(html) {
+    const lines = html.split('\n');
+    let result = [], stack = 0;
+    for (let line of lines) {
+      const match = line.match(/^(>+)\s*(.*)$/);
+      if (match) {
+        const level = match[1].length;
+        const content = match[2];
+        while (stack < level) { result.push('<blockquote>'); stack++; }
+        while (stack > level) { result.push('</blockquote>'); stack--; }
+        result.push(content);
+      } else {
+        while (stack > 0) { result.push('</blockquote>'); stack--; }
+        result.push(line);
+      }
+    }
+    while (stack > 0) result.push('</blockquote>');
+    return result.join('\n');
+  }
+  function parseLists(text) {
+    const lines = text.split('\n');
+    let result = [], inUl = false, inOl = false, ulDepth = 0, olDepth = 0;
+    for (let line of lines) {
+      const ulMatch = line.match(/^(\s*)-\s+(.*)$/);
+      const olMatch = line.match(/^(\s*)\d+\.\s+(.*)$/);
+      if (ulMatch) {
+        const depth = Math.floor(ulMatch[1].length / 2);
+        if (!inUl) { result.push('<ul>'); inUl = true; ulDepth = 1; }
+        while (ulDepth < depth + 1) { result.push('<ul>'); ulDepth++; }
+        while (ulDepth > depth + 1) { result.push('</ul>'); ulDepth--; }
+        result.push(`<li>${ulMatch[2]}</li>`);
+        continue;
+      }
+      if (olMatch) {
+        const depth = Math.floor(olMatch[1].length / 2);
+        if (!inOl) { result.push('<ol>'); inOl = true; olDepth = 1; }
+        while (olDepth < depth + 1) { result.push('<ol>'); olDepth++; }
+        while (olDepth > depth + 1) { result.push('</ol>'); olDepth--; }
+        result.push(`<li>${olMatch[2]}</li>`);
+        continue;
+      }
+      if (inUl) { while (ulDepth > 0) { result.push('</ul>'); ulDepth--; } inUl = false; }
+      if (inOl) { result.push('</ol>'); inOl = false; }
+      result.push(line);
+    }
+    if (inUl) while (ulDepth > 0) result.push('</ul>');
+    if (inOl) result.push('</ol>');
+    return result.join('\n');
+  }
+  function parseTables(text) {
+    const tableRegex = /\|(.+)\|[\r\n]+\|[ \-:+\|]+\|[\r\n]+((?:\|.+\|[\r\n]+)+)/g;
+    return text.replace(tableRegex, (match, headerLine, bodyLines) => {
+      const headers = headerLine.split('|').map(h => h.trim()).filter(h => h);
+      const rows = bodyLines.trim().split(/[\r\n]+/).map(r => r.split('|').map(c => c.trim()).filter(c => c));
+      let tableHtml = '<table><thead><tr>';
+      headers.forEach(h => tableHtml += `<th>${escapeHtml(h)}</th>`);
+      tableHtml += '</tr></thead><tbody>';
+      rows.forEach(row => { tableHtml += '<tr>'; row.forEach(cell => tableHtml += `<td>${escapeHtml(cell)}</td>`); tableHtml += '</tr>'; });
+      tableHtml += '</tbody></table>';
+      return tableHtml;
+    });
+  }
+  
+  function getTimeSuffix() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+  }
+  
+  function saveMD() {
+    let baseName = "document";
+    if (lastUploadedBaseName) baseName = lastUploadedBaseName;
+    const fileName = `${baseName}_${getTimeSuffix()}.md`;
+    const blob = new Blob([realMarkdown], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`已保存为: ${fileName}`);
+    
+    // 手动保存后，更新自动保存状态
+    lastSavedContent = realMarkdown;
+    changeDetected = false;
+    
+    // 清理自动保存的草稿（因为已经手动保存了）
+    try {
+      localStorage.removeItem(AUTO_SAVE_CONFIG.storageKey + 'versions');
+      localStorage.removeItem(AUTO_SAVE_CONFIG.storageKey + 'last_save');
+    } catch (e) {
+      console.warn('清理自动保存数据失败:', e);
+    }
+  }
+  
+  function loadFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.name.endsWith('.md')) {
+      alert('请上传 .md 格式文件');
+      return;
+    }
+    const dotIndex = file.name.lastIndexOf('.');
+    const baseName = dotIndex > 0 ? file.name.substring(0, dotIndex) : file.name;
+    lastUploadedBaseName = baseName;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      setMarkdown(content, true);
+      undoManager.reset(content);
+      showToast(`已加载: ${file.name}`);
+    };
+    reader.readAsText(file);
+  }
+  
+  // 初始化内容
+  const initMarkdown = `# ✨ 智能图片压缩 · 完美兼容所有 Markdown 编辑器
+
+> **兼容性优化**：  
+> - 若图片尺寸 ≤ 1600×1200 且非 JPEG 格式（如 PNG/GIF），**保留原始格式**，不重新编码，确保透明通道和最高质量。  
+> - 仅当图片需要缩放或原图为超大 JPEG 时，才转为 JPEG（质量 0.85），大幅减小体积。  
+> - 生成的 Base64 编码完全符合 Data URI 标准，任何标准 Markdown 编辑器（Typora、Markdown Online、VS Code 等）均可正常显示。
+
+## 试试看
+1. 粘贴一张 PNG 透明小图 → 保留 PNG 格式  
+2. 粘贴一张超大 4K 照片 → 自动压缩至 1600×1200 以内并转为 JPEG  
+3. 按 **Ctrl+Z** 撤销，**Ctrl+Y** 重做  
+4. 点击预览区图片 → 新窗口打开
+
+## 示例图片（PNG 格式将保持原样）
+![示例图标](data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%233b82f6'/%3E%3Ctext x='25' y='55' fill='white' font-size='12'%3E📸 兼容测试%3C/text%3E%3C/svg%3E)
+
+## 其他特性
+- 光标位置插入图片（粘贴/拖拽）  
+- 双栏/单栏切换，同步滚动  
+- 保存时自动使用上传文件名 + 时间后缀  
+- 撤销/重做最多 30 步
+
+> 如果您在其他编辑器中仍遇到图片无法显示，请检查图片 Base64 数据是否完整（本编辑器不会产生截断），或尝试重新插入图片。
+`;
+  // 检查并恢复自动保存的草稿
+  setTimeout(() => {
+    const draft = checkAndRecoverAutoSave();
+    if (draft) {
+      // 延迟显示恢复对话框，确保页面加载完成
+      setTimeout(() => {
+        showRecoveryDialog(draft);
+      }, 500);
+    }
+  }, 100);
+  
+  realMarkdown = initMarkdown;
+  refreshEditorUI(false);
+  renderPreviewFromMarkdown(realMarkdown);
+  undoManager.reset(realMarkdown);
+  setupPreviewImageClick();
+  
+  // 启动自动保存系统
+  startAutoSaveTimer();
+  
+  // 初始化状态指示器
+  updateAutoSaveStatus('idle');
+  
+  editorRich.addEventListener('input', onEditorInput);
+  editorRich.addEventListener('paste', onPaste);
+  document.addEventListener('keydown', onKeyDown);
+  setupDragAndDrop();
+  
+  // 同步滚动
+  editorWrapDiv.addEventListener('scroll', () => {
+    const ratio = editorWrapDiv.scrollTop / (editorWrapDiv.scrollHeight - editorWrapDiv.clientHeight || 1);
+    previewWrap.scrollTop = ratio * (previewWrap.scrollHeight - previewWrap.clientHeight);
+  });
+  previewWrap.addEventListener('scroll', () => {
+    const ratio = previewWrap.scrollTop / (previewWrap.scrollHeight - previewWrap.clientHeight || 1);
+    editorWrapDiv.scrollTop = ratio * (editorWrapDiv.scrollHeight - editorWrapDiv.clientHeight);
+  });
+  
+  window.switchMode = function(mode) {
+    const wrap = document.getElementById('editorWrapper');
+    const btnE = document.getElementById('btnEditor'), btnP = document.getElementById('btnPreview'), btnB = document.getElementById('btnBoth');
+    btnE.classList.remove('active'); btnP.classList.remove('active'); btnB.classList.remove('active');
+    wrap.className = 'editor-wrapper';
+    if (mode === 'editor') { wrap.classList.add('single-editor'); btnE.classList.add('active'); }
+    else if (mode === 'preview') { wrap.classList.add('single-preview'); btnP.classList.add('active'); }
+    else { btnB.classList.add('active'); }
+  };
+  window.loadFile = loadFile;
+  window.saveMD = saveMD;
+</script>
+</body>
+</html>
