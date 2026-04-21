@@ -109,60 +109,6 @@
       box-shadow: 0 8px 20px rgba(0,0,0,0.05);
     }
 
-    .intro-card {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 18px;
-      margin-bottom: 20px;
-      padding: 20px 24px;
-      border-radius: 24px;
-      background: linear-gradient(135deg, #0f172a, #1d4ed8 62%, #38bdf8);
-      color: white;
-      box-shadow: 0 18px 40px rgba(29, 78, 216, 0.22);
-      flex-shrink: 0;
-    }
-
-    .intro-copy h1 {
-      font-size: 28px;
-      line-height: 1.15;
-      margin-bottom: 8px;
-      letter-spacing: -0.02em;
-    }
-
-    .intro-copy p {
-      font-size: 14px;
-      line-height: 1.7;
-      color: rgba(255, 255, 255, 0.9);
-      max-width: 52ch;
-    }
-
-    .feature-list {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      align-content: start;
-    }
-
-    .feature-pill {
-      padding: 12px 14px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.14);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      backdrop-filter: blur(8px);
-    }
-
-    .feature-pill strong {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 4px;
-    }
-
-    .feature-pill span {
-      font-size: 12px;
-      line-height: 1.5;
-      color: rgba(255, 255, 255, 0.88);
-    }
-
     .editor-wrapper.single-editor .panel:last-child { display: none; }
     .editor-wrapper.single-editor .panel:first-child { flex: 0 0 100%; width: 100%; }
     .editor-wrapper.single-preview .panel:first-child { display: none; }
@@ -422,26 +368,6 @@
       background: #2563eb;
     }
 
-    @media (max-width: 1024px) {
-      .intro-card {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .intro-card {
-        padding: 18px;
-        border-radius: 20px;
-      }
-
-      .intro-copy h1 {
-        font-size: 24px;
-      }
-
-      .feature-list {
-        grid-template-columns: 1fr;
-      }
-    }
   </style>
 </head>
 <body>
@@ -460,24 +386,6 @@
     </div>
   </div>
   <input type="file" id="file-input" accept=".md" style="display:none" onchange="loadFile(event)">
-
-  <section class="intro-card">
-    <div class="intro-copy">
-      <h1>Editor Mk7 Autosave</h1>
-      <p>
-        一个偏实用的单文件 Markdown 编辑器：保留原始图片格式、支持撤销重做，
-        同时内置面向长文写作的自动保存机制，尽量把“突然关闭页面”这类损失降到最低。
-      </p>
-    </div>
-    <div class="feature-list">
-      <div class="feature-pill"><strong>智能节流保存</strong><span>停止输入 2 秒后自动保存</span></div>
-      <div class="feature-pill"><strong>定时保存</strong><span>每 30 秒自动保存一次</span></div>
-      <div class="feature-pill"><strong>多版本管理</strong><span>最多保留 3 个自动保存版本</span></div>
-      <div class="feature-pill"><strong>草稿恢复</strong><span>24 小时内自动恢复未保存的草稿</span></div>
-      <div class="feature-pill"><strong>状态指示</strong><span>右上角实时显示自动保存状态</span></div>
-      <div class="feature-pill"><strong>错误处理</strong><span>存储空间不足时自动清理旧数据</span></div>
-    </div>
-  </section>
 
   <div class="editor-wrapper" id="editorWrapper">
     <div class="panel">
